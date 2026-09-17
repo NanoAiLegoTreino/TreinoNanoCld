@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#17181B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NanoTreinoCld">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>NanoTreinoCld</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <header class="topbar">
+    <h1 class="brand">NanoTreino<span class="brand-accent">Cld</span></h1>
+    <button id="btnSettings" class="icon-btn" aria-label="Ajustes" title="Ajustes">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+  </header>
+
+  <main class="main">
+
+    <!-- START SCREEN -->
+    <section id="startScreen" class="card start-screen" aria-label="Iniciar sesión">
+      <p class="start-title">Listo para entrenar</p>
+      <p class="start-desc">Al iniciar se crea la sesión y el Bloque 1 arranca automáticamente.</p>
+      <button id="btnStartSession" class="btn btn-primary btn-large btn-full">Iniciar sesión</button>
+      <div class="history-block">
+        <p class="card-title">Sesiones cerradas recientes</p>
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </section>
+
+    <!-- SESSION VIEW -->
+    <div id="sessionView" class="session-view hidden">
+
+      <div id="reviewBanner" class="review-banner hidden" role="status">
+        <p class="review-title">ENTRENAMIENTO TERMINADO · EN REVISIÓN</p>
+        <p class="review-sub">Fin del entrenamiento: <span id="reviewFinishedAt">—</span> · el tiempo ya no corre</p>
+      </div>
+
+      <section class="card session-summary" aria-label="Resumen de sesión">
+        <div class="summary-row">
+          <div class="summary-item"><span class="summary-label">Inicio</span><span id="sessionStart" class="summary-value">--:--</span></div>
+          <div class="summary-item"><span class="summary-label">Efectivo</span><span id="sessionEffective" class="summary-value">00:00</span></div>
+          <div class="summary-item"><span class="summary-label">Transcurrido</span><span id="sessionElapsed" class="summary-value">00:00</span></div>
+        </div>
+      </section>
+
+      <div id="blocksContainer" class="blocks-container"></div>
+
+      <!-- Notas de bloque activo (sólo visible mientras la sesión está activa) -->
+      <section class="card notes-card active-only" aria-label="Nota de bloque">
+        <p class="card-title">Nota del bloque actual</p>
+        <textarea id="noteInput" class="note-input" placeholder="Tocar y dictar…" rows="2"></textarea>
+      </section>
+
+      <!-- Notas finales de sesión (sólo en revisión) -->
+      <section class="card notes-card review-only" aria-label="Notas finales">
+        <p class="card-title">Notas finales de la sesión</p>
+        <textarea id="finalNoteInput" class="note-input note-input-lg" placeholder="Tocar y dictar… (no afecta la hora de finalización)" rows="5"></textarea>
+      </section>
+
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <div id="activeFooter" class="footer-group">
+      <button id="btnCopy" class="btn btn-primary btn-large btn-full">Copiar a Treino</button>
+      <div class="footer-row">
+        <button id="btnNextBlock" class="btn btn-secondary btn-full hidden">Bloque siguiente</button>
+        <button id="btnTerminar" class="btn btn-danger-outline btn-full">Terminar entrenamiento</button>
+      </div>
+    </div>
+    <div id="reviewFooter" class="footer-group hidden">
+      <button id="btnCopyReview" class="btn btn-primary btn-large btn-full">Copiar a Treino</button>
+      <div class="footer-row">
+        <button id="btnIniciarDesdeRevision" class="btn btn-secondary btn-full">Iniciar sesión nueva</button>
+        <button id="btnCerrarSesion" class="btn btn-danger-outline btn-full">Cerrar sesión</button>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<!-- Settings panel -->
+<div id="settingsOverlay" class="overlay hidden">
+  <div class="sheet" role="dialog" aria-label="Ajustes">
+    <div class="sheet-header">
+      <p class="sheet-title">Ajustes</p>
+      <button id="btnCloseSettings" class="icon-btn" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="setting-row">
+      <div>
+        <p class="setting-label">Vibración al finalizar</p>
+        <p class="setting-desc">Vibra al terminar una fase o el temporizador</p>
+      </div>
+      <button id="toggleVibration" class="toggle" role="switch" aria-checked="true">
+        <span class="toggle-knob"></span>
+      </button>
+    </div>
+    <p class="sheet-note">Para que las alarmas de sonido/vibración sean confiables, dejá la pantalla encendida y NanoTreinoCld en primer plano durante el timer. Con la pantalla bloqueada o la app en segundo plano, Android puede no despertar la alarma a tiempo — el número en pantalla es siempre la referencia real.</p>
+  </div>
+</div>
+
+<!-- Copy fallback -->
+<div id="copyOverlay" class="overlay hidden">
+  <div class="sheet" role="dialog" aria-label="Copiar sesión">
+    <div class="sheet-header">
+      <p class="sheet-title">Sesión lista</p>
+      <button id="btnCloseCopy" class="icon-btn" aria-label="Cerrar">✕</button>
+    </div>
+    <p class="sheet-note" id="copyStatus">Copiado al portapapeles. Si no se pegó bien, seleccioná y copiá el texto de abajo.</p>
+    <textarea id="copyText" class="copy-textarea" readonly></textarea>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
