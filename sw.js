@@ -2,7 +2,7 @@
 
 // Subí la versión del cache cada vez que cambies index.html / styles.css / app.js
 // para que los usuarios reciban la actualización en su próxima visita.
-const CACHE_NAME = 'nanotreino-v3';
+const CACHE_NAME = 'nanotreino-v4';
 
 const APP_SHELL = [
   './',

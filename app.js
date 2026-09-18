@@ -197,7 +197,10 @@ function beep(pattern) {
   });
 }
 
-const SOUND_PHASE = [{ freq: 880, dur: 150 }];
+const SOUND_TAP = [{ freq: 720, dur: 40 }];
+const SOUND_WARMUP_START = [{ freq: 740, dur: 110 }, { freq: 740, dur: 110 }];
+const SOUND_WORK_START = [{ freq: 520, dur: 100 }, { freq: 960, dur: 160 }];
+const SOUND_REST_START = [{ freq: 760, dur: 120 }, { freq: 440, dur: 180 }];
 const SOUND_FINISH = [{ freq: 660, dur: 140 }, { freq: 990, dur: 220 }];
 
 function vibrate(pattern) {
@@ -207,7 +210,16 @@ function vibrate(pattern) {
   }
 }
 
-function alertPhaseChange() { beep(SOUND_PHASE); vibrate([120]); }
+function playTap() { beep(SOUND_TAP); }
+
+// Sonido distinto según a qué fase se entra, para que se note claramente
+// el cambio (preparación / trabajo / descanso) sin mirar la pantalla.
+function alertPhaseChange(phaseType) {
+  vibrate(phaseType === 'work' ? [120, 60, 120] : [120]);
+  if (phaseType === 'work') beep(SOUND_WORK_START);
+  else if (phaseType === 'rest') beep(SOUND_REST_START);
+  else beep(SOUND_WARMUP_START);
+}
 function alertFinish() { beep(SOUND_FINISH); vibrate([150, 90, 150, 90, 300]); }
 
 /* ---------- Wake Lock ---------- */
@@ -546,6 +558,12 @@ function startTickLoop() {
 
 const el = {};
 
+// IDs de timers cuyo panel de "Ajustar" está abierto. Vive solo en memoria
+// (no se persiste): hay que consultarlo cada vez que se regenera el HTML
+// de los bloques, porque el tick de reloj (cada 250ms) reconstruye todo
+// el árbol y, si no se recuerda este estado, el panel se cierra solo.
+const openConfigIds = new Set();
+
 function timerCardHtml(block, timer) {
   const total = timerTotalElapsedMs(timer);
   let display = '00:00';
@@ -590,7 +608,7 @@ function timerCardHtml(block, timer) {
       roundLabel = r.phase.round > 0 ? `Ronda ${r.phase.round} / ${timer.interval.rounds}` : 'Preparate';
       const key = `phase-${r.phaseIndex}`;
       if (timer.running && timer.lastAnnouncedKey !== key) {
-        if (timer.lastAnnouncedKey !== null) alertPhaseChange();
+        if (timer.lastAnnouncedKey !== null) alertPhaseChange(r.phase.type);
         timer.lastAnnouncedKey = key;
       }
     }
@@ -600,11 +618,12 @@ function timerCardHtml(block, timer) {
   const interactive = block.status !== 'finished' && !timer.archived;
   const cardPhaseClass = timer.mode === 'interval' ? (phaseClass === 'is-work' ? 'phase-work' : (phaseClass === 'is-warmup' ? '' : (roundLabel && phaseLabel === 'Descanso' ? 'phase-rest' : ''))) : '';
 
+  const configOpenClass = openConfigIds.has(timer.id) ? '' : 'hidden';
   let configHtml = '';
   if (timer.mode === 'countdown') {
     const cd = timer.countdown.durationMs;
     configHtml = `
-      <div class="timer-config hidden" data-config-for="${timer.id}">
+      <div class="timer-config ${configOpenClass}" data-config-for="${timer.id}">
         <div class="time-input-row">
           <div class="time-field"><label>min</label><input type="number" min="0" max="180" value="${Math.floor(cd / 60000)}" data-cfg="cdMin" data-timer="${timer.id}" ${interactive ? '' : 'disabled'}></div>
           <div class="time-field"><label>seg</label><input type="number" min="0" max="59" value="${Math.floor((cd % 60000) / 1000)}" data-cfg="cdSec" data-timer="${timer.id}" ${interactive ? '' : 'disabled'}></div>
@@ -618,7 +637,7 @@ function timerCardHtml(block, timer) {
   } else if (timer.mode === 'interval') {
     const iv = timer.interval;
     configHtml = `
-      <div class="timer-config hidden" data-config-for="${timer.id}">
+      <div class="timer-config ${configOpenClass}" data-config-for="${timer.id}">
         <p class="config-title">Preparación</p>
         <div class="time-input-row">
           <div class="time-field"><label>min</label><input type="number" min="0" max="59" value="${Math.floor(iv.warmupMs / 60000)}" data-cfg="ivWarmMin" data-timer="${timer.id}" ${interactive ? '' : 'disabled'}></div>
@@ -730,6 +749,24 @@ function escapeHtml(s) {
 
 function renderBlocks() {
   if (!state.session) return;
+
+  // El tick del reloj llama a render() cada 250ms y reconstruye todo este
+  // HTML. Si en ese momento el usuario está escribiendo en un campo de
+  // configuración (min/seg/rondas), hay que restaurar el foco y la
+  // posición del cursor después de reconstruir, si no, cada tecla que
+  // toca se pierde y el campo nunca llega a completarse.
+  const active = document.activeElement;
+  let focusInfo = null;
+  if (active && el.blocksContainer.contains(active) && active.dataset && active.dataset.cfg) {
+    focusInfo = {
+      timer: active.dataset.timer,
+      cfg: active.dataset.cfg,
+      value: active.value,
+      selStart: typeof active.selectionStart === 'number' ? active.selectionStart : null,
+      selEnd: typeof active.selectionEnd === 'number' ? active.selectionEnd : null
+    };
+  }
+
   const blocks = state.session.blocks;
   el.blocksContainer.innerHTML = blocks
     .slice()
@@ -737,6 +774,17 @@ function renderBlocks() {
     .map(b => blockCardHtml(b, b.n === blocks.length))
     .join('');
   attachHoldFinalizeHandlers();
+
+  if (focusInfo) {
+    const restored = el.blocksContainer.querySelector(`[data-timer="${focusInfo.timer}"][data-cfg="${focusInfo.cfg}"]`);
+    if (restored) {
+      restored.value = focusInfo.value;
+      restored.focus();
+      if (focusInfo.selStart != null) {
+        try { restored.setSelectionRange(focusInfo.selStart, focusInfo.selEnd); } catch (e) { /* noop */ }
+      }
+    }
+  }
 }
 
 function renderSummary() {
@@ -926,8 +974,9 @@ function handleBlocksClick(e) {
     return;
   }
   if (action === 'toggle-config') {
-    const panel = el.blocksContainer.querySelector(`[data-config-for="${btn.dataset.timer}"]`);
-    if (panel) panel.classList.toggle('hidden');
+    const id = btn.dataset.timer;
+    if (openConfigIds.has(id)) openConfigIds.delete(id); else openConfigIds.add(id);
+    renderBlocks();
     return;
   }
   if (action === 'pause-block') {
@@ -1080,6 +1129,12 @@ function init() {
     el.toggleVibration.setAttribute('aria-checked', String(state.settings.vibration));
     saveStateNow();
     if (state.settings.vibration) vibrate([60]);
+  });
+
+  // Sonido corto en cualquier botón de la app (además de las alertas
+  // propias de fases/finales de timer, que son más largas y distintas).
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('button')) playTap();
   });
 
   render();
